@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAPA — Relatório PF</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #181b24;
+    --surface2: #1e2230;
+    --border: #2a2f40;
+    --border2: #353c52;
+    --accent: #3b82f6;
+    --accent2: #1d4ed8;
+    --green: #10b981;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --muted2: #94a3b8;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+
+  /* Grid de fundo sutil */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left {}
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(59,130,246,0.12);
+    border: 1px solid rgba(59,130,246,0.3);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+  }
+
+  .badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  h1 span { color: var(--muted); font-weight: 400; }
+
+  .subtitle {
+    color: var(--muted2);
+    font-size: 13px;
+    margin-top: 6px;
+    font-weight: 300;
+  }
+
+  .mes-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .mes-label strong {
+    display: block;
+    font-size: 16px;
+    color: var(--muted2);
+    margin-top: 2px;
+  }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: 10px;
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(59,130,246,0.05);
+  }
+
+  .drop-zone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 16px;
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface2);
+  }
+
+  .drop-icon svg { width: 22px; height: 22px; stroke: var(--muted2); }
+
+  .drop-title {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--muted2);
+    margin-bottom: 4px;
+  }
+
+  .drop-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Fila de PDFs */
+  .queue {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .queue-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    transition: border-color 0.2s;
+  }
+
+  .queue-item.processing { border-color: var(--accent); }
+  .queue-item.done { border-color: var(--green); }
+  .queue-item.error { border-color: var(--red); }
+
+  .q-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+
+  .q-icon.pdf { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
+
+  .q-name {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .q-status {
+    font-family: var(--mono);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .q-status.waiting { color: var(--muted); }
+  .q-status.processing { color: var(--accent); }
+  .q-status.done { color: var(--green); }
+  .q-status.error { color: var(--red); }
+
+  .spinner {
+    width: 12px; height: 12px;
+    border: 1.5px solid rgba(59,130,246,0.3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Botões */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 32px;
+    align-items: center;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 7px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover:not(:disabled) { background: var(--accent2); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted2);
+    border: 1px solid var(--border2);
+  }
+
+  .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-green {
+    background: rgba(16,185,129,0.15);
+    color: var(--green);
+    border: 1px solid rgba(16,185,129,0.3);
+  }
+
+  .btn-green:hover:not(:disabled) { background: rgba(16,185,129,0.25); }
+  .btn-green:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Seção de resultados */
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .count-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(59,130,246,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(59,130,246,0.2);
+  }
+
+  /* Tabela */
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+    margin-bottom: 16px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    padding: 10px 14px;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 11px 14px;
+    font-size: 13px;
+    color: var(--muted2);
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .td-main { color: var(--text); font-weight: 400; }
+  .td-mono { font-family: var(--mono); font-size: 12px; }
+  .td-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .substancia-pill {
+    display: inline-block;
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: #fbbf24;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 2px;
+  }
+
+  .qtd-val {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .qtd-unit {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: 3px;
+  }
+
+  /* Cliente separator */
+  .cliente-group td {
+    background: var(--surface2);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Estado vazio */
+  .empty-state {
+    text-align: center;
+    padding: 56px 24px;
+    color: var(--muted);
+  }
+
+  .empty-state p {
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  /* Editable cell */
+  td[contenteditable="true"] {
+    outline: none;
+    cursor: text;
+  }
+
+  td[contenteditable="true"]:focus {
+    background: rgba(59,130,246,0.05);
+    box-shadow: inset 0 0 0 1px rgba(59,130,246,0.3);
+    border-radius: 2px;
+  }
+
+  .edit-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-family: var(--mono);
+  }
+
+  .edit-hint span {
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+  }
+
+  /* Log / debug */
+  .log {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    max-height: 120px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .log.visible { display: block; }
+  .log-line { line-height: 1.6; }
+  .log-line.ok { color: var(--green); }
+  .log-line.err { color: var(--red); }
+  .log-line.info { color: var(--accent); }
+
+  /* Responsivo */
+  @media (max-width: 640px) {
+    th:nth-child(3), td:nth-child(3) { display: none; }
+    h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="badge">Polícia Federal · SISNAD / MAPA</div>
+      <h1>Relatório <span>de Entradas</span></h1>
+      <p class="subtitle">Substâncias controladas — leitura automática de NFs</p>
+    </div>
+    <div class="mes-label">
+      Período
+      <strong id="mes-atual">—</strong>
+    </div>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".pdf" multiple>
+    <div class="drop-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4-4 4 4M12 4v8"/>
+      </svg>
+    </div>
+    <p class="drop-title">Arraste os PDFs das notas fiscais aqui</p>
+    <p class="drop-sub">ou clique para selecionar — múltiplos arquivos aceitos</p>
+  </div>
+
+  <!-- Fila de arquivos -->
+  <div class="queue" id="queue"></div>
+
+  <!-- Progress -->
+  <div class="progress-bar" id="progressBar" style="display:none">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+
+  <!-- Log -->
+  <div class="log" id="log"></div>
+
+  <!-- Botões -->
+  <div class="btn-row">
+    <button class="btn btn-primary" id="btnProcessar" disabled onclick="processarTodos()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Processar NFs
+    </button>
+    <button class="btn btn-ghost" id="btnLimpar" onclick="limpar()">
+      Limpar tudo
+    </button>
+    <button class="btn btn-green" id="btnExportar" disabled onclick="exportarCSV()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <!-- Resultados -->
+  <div id="resultados" style="display:none">
+    <div class="results-header">
+      <span class="section-title">Entradas identificadas</span>
+      <span class="count-badge" id="totalCount">0 registros</span>
+    </div>
+    <p class="edit-hint">Clique em qualquer célula para editar &nbsp;<span>duplo clique</span></p>
+    <div class="table-wrap">
+      <table id="tabelaMapa">
+        <thead>
+          <tr>
+            <th>Cliente destinatário</th>
+            <th>Fornecedor</th>
+            <th>NF / Data</th>
+            <th>Substância controlada</th>
+            <th>Qtd</th>
+            <th>Un.</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="exportarCSV()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Exportar CSV
+      </button>
+      <button class="btn btn-ghost" onclick="copiarTabela()">Copiar tabela</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── Estado ───────────────────────────────────────────────────────────────────
+const arquivos = [];
+const registros = [];
+
+// ─── Data do mês ──────────────────────────────────────────────────────────────
+const agora = new Date();
+document.getElementById('mes-atual').textContent =
+  agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+// ─── Drop zone ────────────────────────────────────────────────────────────────
+const dz = document.getElementById('dropZone');
+const fi = document.getElementById('fileInput');
+
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('dragover');
+  adicionarArquivos([...e.dataTransfer.files]);
+});
+fi.addEventListener('change', () => adicionarArquivos([...fi.files]));
+
+function adicionarArquivos(files) {
+  files.filter(f => f.type === 'application/pdf').forEach(f => {
+    if (arquivos.find(a => a.file.name === f.name)) return;
+    const entry = { file: f, status: 'waiting', id: Date.now() + Math.random() };
+    arquivos.push(entry);
+    renderQueue();
+  });
+  document.getElementById('btnProcessar').disabled = arquivos.length === 0;
+}
+
+// ─── Fila visual ──────────────────────────────────────────────────────────────
+function renderQueue() {
+  const q = document.getElementById('queue');
+  q.innerHTML = arquivos.map(a => `
+    <div class="queue-item ${a.status}" id="qi-${a.id}">
+      <div class="q-icon pdf">PDF</div>
+      <span class="q-name">${a.file.name}</span>
+      <span class="q-status ${a.status}">
+        ${a.status === 'waiting'    ? '— aguardando'   : ''}
+        ${a.status === 'processing' ? '<div class="spinner"></div> lendo...' : ''}
+        ${a.status === 'done'       ? '✓ extraído'     : ''}
+        ${a.status === 'error'      ? '✗ erro'         : ''}
+      </span>
+    </div>
+  `).join('');
+}
+
+// ─── Log ──────────────────────────────────────────────────────────────────────
+function log(msg, tipo = '') {
+  const el = document.getElementById('log');
+  el.classList.add('visible');
+  el.innerHTML += `<div class="log-line ${tipo}">${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+// ─── PDF → base64 ─────────────────────────────────────────────────────────────
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = () => rej(new Error('Falha ao ler ' + file.name));
+    r.readAsDataURL(file);
+  });
+}
+
+// ─── Processar todos ──────────────────────────────────────────────────────────
+async function processarTodos() {
+  const pendentes = arquivos.filter(a => a.status === 'waiting');
+  if (!pendentes.length) return;
+
+  document.getElementById('btnProcessar').disabled = true;
+  document.getElementById('progressBar').style.display = 'block';
+
+  let done = 0;
+  const total = pendentes.length;
+
+  for (const entry of pendentes) {
+    entry.status = 'processing';
+    renderQueue();
+    log(`Processando: ${entry.file.name}`, 'info');
+
+    try {
+      const b64 = await toBase64(entry.file);
+      const novos = await extrairComIA(b64, entry.file.name);
+      novos.forEach(r => registros.push(r));
+      entry.status = 'done';
+      log(`✓ ${entry.file.name} — ${novos.length} substância(s) encontrada(s)`, 'ok');
+    } catch (err) {
+      entry.status = 'error';
+      log(`✗ ${entry.file.name}: ${err.message}`, 'err');
+    }
+
+    done++;
+    document.getElementById('progressFill').style.width = (done / total * 100) + '%';
+    renderQueue();
+  }
+
+  renderTabela();
+  document.getElementById('btnExportar').disabled = registros.length === 0;
+  document.getElementById('btnProcessar').disabled = false;
+}
+
+// ─── Chamada à API Anthropic ──────────────────────────────────────────────────
+async function extrairComIA(base64pdf, nomeArquivo) {
+  const prompt = `Você é um especialista em documentos fiscais brasileiros e substâncias controladas (SISNAD / Polícia Federal).
+
+Analise esta Nota Fiscal em PDF e extraia SOMENTE os itens que sejam substâncias químicas controladas pela Polícia Federal do Brasil (lista SISNAD, precursores químicos, solventes controlados, etc.).
+
+Ignore produtos comuns, materiais de escritório, alimentos, peças mecânicas, embalagens ou qualquer item claramente não controlado.
+
+Retorne SOMENTE um JSON válido (sem texto adicional, sem markdown, sem explicações), no formato:
+{
+  "fornecedor": "Razão social do emitente",
+  "fornecedor_cnpj": "XX.XXX.XXX/XXXX-XX",
+  "nf_numero": "número da NF",
+  "nf_data": "DD/MM/AAAA",
+  "destinatario": "Razão social do destinatário",
+  "destinatario_cnpj": "XX.XXX.XXX/XXXX-XX",
+  "substancias": [
+    {
+      "nome": "nome da substância",
+      "quantidade": "valor numérico como string",
+      "unidade": "kg / L / g / mL / un / etc"
+    }
+  ]
+}
+
+Se não houver substâncias controladas, retorne: {"substancias": []}
+Se algum campo não for encontrado, use string vazia "".
+Nome do arquivo: ${nomeArquivo}`;
+
+  const fetchPromise = fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: { type: 'base64', media_type: 'application/pdf', data: base64pdf }
+          },
+          { type: 'text', text: prompt }
+        ]
+      }]
+    })
+  });
+
+  const timeoutPromise = new Promise((_, rej) =>
+    setTimeout(() => rej(new Error('Tempo limite excedido (90s)')), 90000)
+  );
+
+  let resp;
+  try {
+    resp = await Promise.race([fetchPromise, timeoutPromise]);
+  } catch (e) {
+    throw new Error('Erro na requisição: ' + e.message);
+  }
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    const msg = err.error?.message || `HTTP ${resp.status}`;
+    // Erros comuns com mensagem amigável
+    if (resp.status === 401) throw new Error('API key inválida ou ausente (401)');
+    if (resp.status === 429) throw new Error('Limite de requisições atingido — aguarde 1 min (429)');
+    if (resp.status === 529) throw new Error('API sobrecarregada — tente em instantes (529)');
+    throw new Error(msg);
+  }
+
+  const data = await resp.json();
+  const raw = data.content?.find(b => b.type === 'text')?.text || '{}';
+
+  let parsed;
+  try {
+    const clean = raw.replace(/```json|```/gi, '').trim();
+    parsed = JSON.parse(clean);
+  } catch {
+    throw new Error('Resposta inválida da IA: ' + raw.slice(0, 80));
+  }
+
+  if (!parsed.substancias?.length) return [];
+
+  return parsed.substancias.map(s => ({
+    cliente: parsed.destinatario || '',
+    cliente_cnpj: parsed.destinatario_cnpj || '',
+    fornecedor: parsed.fornecedor || '',
+    fornecedor_cnpj: parsed.fornecedor_cnpj || '',
+    nf_numero: parsed.nf_numero || '',
+    nf_data: parsed.nf_data || '',
+    substancia: s.nome || '',
+    quantidade: s.quantidade || '',
+    unidade: s.unidade || '',
+    arquivo: nomeArquivo
+  }));
+}
+
+// ─── Tabela ───────────────────────────────────────────────────────────────────
+function renderTabela() {
+  const tbody = document.getElementById('tbody');
+  document.getElementById('resultados').style.display = 'block';
+  document.getElementById('totalCount').textContent = `${registros.length} registro${registros.length !== 1 ? 's' : ''}`;
+
+  if (!registros.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Nenhuma substância controlada identificada</p></div></td></tr>`;
+    return;
+  }
+
+  // Agrupar por cliente
+  const grupos = {};
+  registros.forEach((r, i) => {
+    const k = r.cliente || '(sem destinatário)';
+    if (!grupos[k]) grupos[k] = [];
+    grupos[k].push({ ...r, _i: i });
+  });
+
+  let html = '';
+  for (const [cliente, itens] of Object.entries(grupos)) {
+    html += `<tr class="cliente-group"><td colspan="6">▸ ${cliente}${itens[0].cliente_cnpj ? ' · ' + itens[0].cliente_cnpj : ''}</td></tr>`;
+    itens.forEach(r => {
+      html += `
+        <tr>
+          <td>
+            <div class="td-main" contenteditable="true" title="${r.cliente_cnpj}">${r.cliente}</div>
+            <div class="td-sub td-mono">${r.cliente_cnpj}</div>
+          </td>
+          <td>
+            <div class="td-main" contenteditable="true">${r.fornecedor}</div>
+            <div class="td-sub td-mono">${r.fornecedor_cnpj}</div>
+          </td>
+          <td>
+            <div class="td-mono" contenteditable="true">${r.nf_numero}</div>
+            <div class="td-sub">${r.nf_data}</div>
+          </td>
+          <td>
+            <span class="substancia-pill">${r.substancia}</span>
+          </td>
+          <td>
+            <span class="qtd-val" contenteditable="true">${r.quantidade}</span>
+          </td>
+          <td>
+            <span class="qtd-unit" contenteditable="true">${r.unidade}</span>
+          </td>
+        </tr>`;
+    });
+  }
+  tbody.innerHTML = html;
+}
+
+// ─── Exportar CSV ─────────────────────────────────────────────────────────────
+function exportarCSV() {
+  if (!registros.length) return;
+  const header = ['Cliente','CNPJ Cliente','Fornecedor','CNPJ Fornecedor','NF Número','NF Data','Substância','Quantidade','Unidade'];
+  const rows = registros.map(r => [
+    r.cliente, r.cliente_cnpj, r.fornecedor, r.fornecedor_cnpj,
+    r.nf_numero, r.nf_data, r.substancia, r.quantidade, r.unidade
+  ].map(v => `"${(v||'').replace(/"/g,'""')}"`));
+
+  const csv = [header, ...rows].map(r => r.join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const mes = agora.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }).replace('/', '-');
+  a.href = url; a.download = `MAPA_${mes}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Copiar tabela ────────────────────────────────────────────────────────────
+async function copiarTabela() {
+  const header = 'Cliente\tCNPJ Cliente\tFornecedor\tCNPJ Fornecedor\tNF Número\tNF Data\tSubstância\tQuantidade\tUnidade';
+  const rows = registros.map(r =>
+    [r.cliente, r.cliente_cnpj, r.fornecedor, r.fornecedor_cnpj, r.nf_numero, r.nf_data, r.substancia, r.quantidade, r.unidade].join('\t')
+  ).join('\n');
+  await navigator.clipboard.writeText(header + '\n' + rows);
+  alert('Tabela copiada! Cole direto no Excel ou Google Sheets.');
+}
+
+// ─── Limpar ───────────────────────────────────────────────────────────────────
+function limpar() {
+  arquivos.length = 0;
+  registros.length = 0;
+  document.getElementById('queue').innerHTML = '';
+  document.getElementById('tbody').innerHTML = '';
+  document.getElementById('resultados').style.display = 'none';
+  document.getElementById('progressBar').style.display = 'none';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('log').classList.remove('visible');
+  document.getElementById('btnProcessar').disabled = true;
+  document.getElementById('btnExportar').disabled = true;
+  document.getElementById('totalCount').textContent = '0 registros';
+  fi.value = '';
+}
+</script>
+</body>
+</html>
